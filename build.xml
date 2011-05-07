@@ -1,0 +1,76 @@
+<project name="FaceClustering" basedir="." default="build">
+
+	<!-- Properties file for the environment, and some global properties -->
+	<property name="properties.file" value="build.properties" />
+	<property file="${properties.file}" />
+	<property name="java.src.dir" value="src/java" />
+	<property name="build.dir" value="build" />
+	<property name="lib.dir" value="lib" />
+	<property name="dist.dir" value="dist" />
+	<property name="java.main.class.name" value="info.iylk.dev.faceclustering.mapred.FaceClusteringDriver" />
+	<property name="dist.manifest.classpath" value="." />
+
+	<!-- classpaths -->
+	<path id="compile.classpath">
+		<pathelement location="${build.dir}" />
+		<fileset dir="${lib.dir}" includes="**/*.jar" />
+	</path>
+	
+	<!-- clean target -->
+	<target name="clean" description="Deletes all the build products.">
+		<delete dir="${build.dir}" />
+		<delete dir="${dist.dir}" />
+	</target>
+	
+	<!-- init target -->
+	<target name="init" depends="clean" description="Creates directories needed by the build system.">
+		<mkdir dir="${build.dir}" />
+		<mkdir dir="${build.dir}/META-INF" />
+		<mkdir dir="${dist.dir}" />
+		<!-- Get the svn revision -->
+		<exec executable="svnversion" outputproperty="revision.number" failonerror="false" failifexecutionfails="false">
+			<arg value="." />
+		</exec>
+		<echo message="Current repository version is: ${revision.number}" />
+	</target>
+
+	<!-- compile target -->
+	<target name="compile" depends="init" description="Compiles the java code for ${project.name}.">
+		<javac destdir="${build.dir}" debug="on" debuglevel="lines,vars,source">
+			<src path="${java.src.dir}" />
+			<classpath refid="compile.classpath" />
+		</javac>
+		<copy todir="${build.dir}">
+			<fileset dir="${java.src.dir}">
+				<exclude name="**/*.java" />
+			</fileset>
+		</copy>
+	</target>
+
+	<!-- jar target -->
+	<target name="jar" depends="compile" description="Builds the ${project.name}-rev${revision.number}.jar file.">
+		<copy todir="${build.dir}/lib">
+			<fileset dir="${lib.dir}">
+				<exclude name="hadoop-0.20.1-core.jar"/>
+			</fileset>
+		</copy>
+		<jar destfile="${dist.dir}/${project.name}-rev${revision.number}.jar" compress="true" basedir="${build.dir}" defaultexcludes="no">
+			<exclude name="info/iylk/dev/faceclustering/example/**" />
+			<manifest>
+				<attribute name="Main-Class" value="${java.main.class.name}" />
+				<attribute name="Class-Path" value="${dist.manifest.classpath}" />
+				<attribute name="Implementation-Title" value="${product.name}" />
+				<attribute name="Specification-Version" value="${product.version}" />
+				<attribute name="Implementation-Version" value="${repository.version}" />
+			</manifest>
+		</jar>
+	</target>
+
+	<!-- scp target -->
+	<target name="scp" depends="jar" description="Transfers the ${project.name}-rev${revision.number}.jar file to a remote host.">
+		<scp file="${dist.dir}/${project.name}-rev${revision.number}.jar" todir="${ssh.username}:${ssh.password}@${ssh.host}:${ssh.path}" trust="yes" verbose="true"/>
+	</target>
+
+	<!-- build target -->
+	<target name="build" depends="jar" />
+</project>
